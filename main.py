@@ -9,14 +9,14 @@ from pathlib import Path
 
 def parse_args():
     parser = argparse.ArgumentParser(description="LoRA + OHEM Target-Specific Training")
-    parser.add_argument('--data_root', type=str, default='./data', help='数据集根目录')
-    parser.add_argument('--seq_id', type=str, default='0001', help='当前要针对性微调的序列ID')
-    parser.add_argument('--batch_size', type=int, default=8, help='由于包含K个负样本，建议BatchSize小一点')
+    parser.add_argument('--data_root', type=str, default='./data', help='root directory of dataset')
+    parser.add_argument('--seq_id', type=str, default='0001', help='terget sequence ID')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size for nagtive samples')
     parser.add_argument('--epochs', type=int, default=15)
     parser.add_argument('--lr', type=float, default=5e-5)
     parser.add_argument('--margin', type=float, default=3.5, help='Triplet Loss Margin')
-    parser.add_argument('--num_negatives', type=int, default=8, help='OHEM每批候选负样本数量')
-    parser.add_argument('--anchor_ratio', type=float, default=0.05, help='使用序列前百分之几的帧作为训练集')
+    parser.add_argument('--num_negatives', type=int, default=6, help='OHEM candidate negative samples per batch')
+    parser.add_argument('--anchor_ratio', type=float, default=0.05, help='training set proportion')
     return parser.parse_args()
 
 def main():
