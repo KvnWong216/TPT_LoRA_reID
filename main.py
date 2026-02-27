@@ -1,36 +1,70 @@
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from models.lora_resnet import get_lora_res
-from utils.transforms import LightTransform
-from trainer import Trainer
-from PIL import Image
-import numpy as np
+from dataset import TargetSpecificTripletDataset 
+from trainer import TargetSpecificTrainer
+from utils.transforms import LightTransform 
+import argparse
+from pathlib import Path
 
-# 临时模拟数据集
-class DummyDataset(Dataset):
-    def __init__(self, transform=None):
-        self.transform = transform
-    def __len__(self): return 100
-    def __getitem__(self, idx):
-        img = Image.fromarray(np.uint8(np.random.randint(0,255,(256,128,3))))
-        return self.transform(img), torch.randint(0, 751, (1,)).item()
+def parse_args():
+    parser = argparse.ArgumentParser(description="LoRA + OHEM Target-Specific Training")
+    parser.add_argument('--data_root', type=str, default='./data', help='数据集根目录')
+    parser.add_argument('--seq_id', type=str, default='0001', help='当前要针对性微调的序列ID')
+    parser.add_argument('--batch_size', type=int, default=8, help='由于包含K个负样本，建议BatchSize小一点')
+    parser.add_argument('--epochs', type=int, default=15)
+    parser.add_argument('--lr', type=float, default=5e-5)
+    parser.add_argument('--margin', type=float, default=3.5, help='Triplet Loss Margin')
+    parser.add_argument('--num_negatives', type=int, default=8, help='OHEM每批候选负样本数量')
+    parser.add_argument('--anchor_ratio', type=float, default=0.05, help='使用序列前百分之几的帧作为训练集')
+    return parser.parse_args()
 
 def main():
-    model = get_lora_res(num_classes=751)
-    model.print_trainable_parameters()
+    args = parse_args()
     
-    train_transform = LightTransform(is_train=True)
-    dataset = DummyDataset(transform=train_transform)
-    loader = DataLoader(dataset, batch_size=16, shuffle=True)
+    transform_weak = LightTransform(is_train=False) # 仅 Resize/Normalize
+    transform_strong = LightTransform(is_train=True) # 包含 RandomFlip/ColorJitter
     
-    trainer = Trainer(model)
-    print("Starting training...")
-    for epoch in range(3):
-        loss = trainer.train_one_epoch(loader)
-        print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
+    train_dataset = TargetSpecificTripletDataset(
+        root_dir=args.data_root,
+        seq_id=args.seq_id,
+        anchor_ratio=args.anchor_ratio,
+        num_negatives=args.num_negatives,
+        transform_weak=transform_weak,
+        transform_strong=transform_strong
+    )
     
-    model.save_pretrained("checkpoints/lora_adapter_v1")
-    print("Weights saved!")
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=args.batch_size, 
+        shuffle=True, 
+        num_workers=4,
+        pin_memory=True
+    )
+
+    print(f"🚀 初始化序列 {args.seq_id} 的专用微调任务...")
+    print(f"📊 训练样本数: {len(train_dataset)}, 负样本候选池大小: {args.num_negatives}")
+
+    model = get_lora_res(num_classes=2, r=4) 
+    
+    trainer = TargetSpecificTrainer(
+        model=model,
+        lr=args.lr,
+        margin=args.margin
+    )
+
+    for epoch in range(args.epochs):
+        avg_loss = trainer.train_one_epoch(train_loader)
+        print(f"Epoch [{epoch+1}/{args.epochs}] - Loss: {avg_loss:.4f}")
+
+        if (epoch + 1) % 5 == 0:
+            save_path = f"checkpoints/lora_{args.seq_id}_ep{epoch+1}"
+            model.save_pretrained(save_path)
+            print(f"💾 模型已保存至: {save_path}")
+
+    final_path = f"checkpoints/lora_{args.seq_id}_final"
+    model.save_pretrained(final_path)
+    print(f"✅ 针对序列 {args.seq_id} 的 OHEM 微调已完成！")
 
 if __name__ == "__main__":
     main()
