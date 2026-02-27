@@ -22,8 +22,8 @@ def parse_args():
 def main():
     args = parse_args()
     
-    transform_weak = LightTransform(is_train=False) # 仅 Resize/Normalize
-    transform_strong = LightTransform(is_train=True) # 包含 RandomFlip/ColorJitter
+    transform_weak = LightTransform(is_train=False)
+    transform_strong = LightTransform(is_train=True) 
     
     train_dataset = TargetSpecificTripletDataset(
         root_dir=args.data_root,

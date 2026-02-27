@@ -12,7 +12,7 @@ class TPTLoRAResNet(nn.Module):
         config = LoraConfig(
             r=r,
             lora_alpha=alpha,
-            target_modules=["layer4"], 
+            target_modules=["layer4"], # Higher layer for semantic feature extraction. 
             lora_dropout=0.1,
             bias="none"
         )
