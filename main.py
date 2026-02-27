@@ -6,17 +6,18 @@ from trainer import TargetSpecificTrainer
 from utils.transforms import LightTransform 
 import argparse
 from pathlib import Path
+from utils.train_vis import TrainingVisualizer
 
 def parse_args():
     parser = argparse.ArgumentParser(description="LoRA + OHEM Target-Specific Training")
     parser.add_argument('--data_root', type=str, default='./data', help='root directory of dataset')
     parser.add_argument('--seq_id', type=str, default='0001', help='terget sequence ID')
     parser.add_argument('--batch_size', type=int, default=8, help='batch size for nagtive samples')
-    parser.add_argument('--epochs', type=int, default=15)
-    parser.add_argument('--lr', type=float, default=1e-5)
-    parser.add_argument('--margin', type=float, default=3.5, help='Triplet Loss Margin')
+    parser.add_argument('--epochs', type=int, default=30)
+    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--margin', type=float, default=0.6, help='Triplet Loss Margin')
     parser.add_argument('--num_negatives', type=int, default=6, help='OHEM candidate negative samples per batch')
-    parser.add_argument('--anchor_ratio', type=float, default=0.05, help='training set proportion')
+    parser.add_argument('--anchor_ratio', type=float, default=0.08, help='training set proportion')
     return parser.parse_args()
 
 def main():
@@ -52,10 +53,14 @@ def main():
         lr=args.lr,
         margin=args.margin
     )
+    vis = TrainingVisualizer(save_dir=f"logs/{args.seq_id}")
 
     for epoch in range(args.epochs):
         avg_loss = trainer.train_one_epoch(train_loader)
         print(f"Epoch [{epoch+1}/{args.epochs}] - Loss: {avg_loss:.4f}")
+
+        vis.update(total=avg_loss, tri=avg_loss, ce=0.0) 
+        print(f"Epoch {epoch+1} visualization updated.")
 
         if (epoch + 1) % 5 == 0:
             save_path = f"checkpoints/lora_{args.seq_id}_ep{epoch+1}"

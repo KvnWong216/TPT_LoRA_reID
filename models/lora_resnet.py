@@ -5,14 +5,14 @@ import timm
 from peft import LoraConfig, get_peft_model
 
 class TPTLoRAResNet(nn.Module):
-    def __init__(self, num_classes=2, r=2, alpha=1): 
+    def __init__(self, num_classes=2, r=4, alpha=1): 
         super().__init__()
         base_model = timm.create_model('resnet50', pretrained=True, num_classes=num_classes)
         
         config = LoraConfig(
             r=r,
             lora_alpha=alpha,
-            target_modules=["layer4"], # Higher layer for semantic feature extraction. 
+            target_modules=["layer4.0.conv2", "layer4.1.conv2", "layer4.2.conv2"], # Higher layer for semantic feature extraction. 
             lora_dropout=0.1,
             bias="none"
         )

@@ -177,4 +177,4 @@ def run_evaluation(seq_id, data_root, lora_path, r=4):
 
 if __name__ == "__main__":
     for sid in ['0001', '0008']:
-        run_evaluation(sid, './data', 'checkpoints/lora_0001_ep10', r=4)
+        run_evaluation(sid, './data', 'checkpoints/lora_0001_final', r=4)

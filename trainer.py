@@ -30,16 +30,21 @@ class TargetSpecificTrainer:
             emb_n_all = emb_n_all.view(B, K, -1)
             
             # 进行 L2 归一化
-            emb_a = F.normalize(emb_a, p=2, dim=1)
-            emb_p = F.normalize(emb_p, p=2, dim=1)
-            emb_n_all = F.normalize(emb_n_all, p=2, dim=1)
+            emb_a_norm = F.normalize(emb_a, p=2, dim=1)
+            emb_p_norm = F.normalize(emb_p, p=2, dim=1)
+            emb_n_all_norm = F.normalize(emb_n_all, p=2, dim=2)
             
-            dist = torch.cdist(emb_a.unsqueeze(1), emb_n_all).squeeze(1)
+            dist = torch.cdist(emb_a_norm.unsqueeze(1), emb_n_all_norm).squeeze(1)
             hard_idx = torch.argmin(dist, dim=1)
-            emb_n_hard = emb_n_all[torch.arange(B), hard_idx]
+            emb_n_hard_norm = emb_n_all_norm[torch.arange(B), hard_idx]
             
-            loss = self.triplet_criterion(emb_a, emb_p, emb_n_hard)
+            loss = self.triplet_criterion(emb_a_norm, emb_p_norm, emb_n_hard_norm)
             
+            # For debugging
+            # with torch.no_grad():
+            #     d_ap = torch.norm(emb_a_norm - emb_p_norm, p=2, dim=1).mean().item()
+            #     d_an = torch.norm(emb_a_norm - emb_n_hard_norm, p=2, dim=1).mean().item()
+            # print(f"Dist Positive: {d_ap:.4f} | Dist Negative: {d_an:.4f} | Loss: {loss.item():.4f}")
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
             self.optimizer.step()
